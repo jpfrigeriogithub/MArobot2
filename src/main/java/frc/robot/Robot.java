@@ -376,8 +376,7 @@ public class Robot extends TimedRobot {
 
     // -----------------------------------------------------
     // show the timers:
-    SmartDashboard.putNumber("TIMER:",m_timer.get());
-    double timeleft = 150 - Math.round(m_timer.get());
+    SmartDashboard.putNumber("TIMER:",m_timer.get());  double timeleft = 150 - Math.round(m_timer.get());
     SmartDashboard.putNumber("TIME LEFT:",timeleft);
 
     //  button 4 on xbox control determines if climb mode is on or off.
@@ -1033,28 +1032,48 @@ public void climb_six() {
       // start phase 20
 
 
-      // raising both front legs. 
+      // raising both front legs.  full speed, for X seconds.
     if (climbphase == 20) {
-      if (raiseLegsClock > 8) {
-        climbphase = 30 ;
+      if (raiseLegsClock > 5) {
+        climbphase = 25 ;
         frontLiftLeft.set(0);
         frontLiftRight.set(0);
         L("finished phase 20, time elapsed.");
+        raiseLegsClock  = 0 ;
+        return ;
       } else {
         if (raiseLegsClock == 0) {
           raiseLegsStart_time = m_timer.get() - .1 ;
           L("starting phase 20");
-          SmartDashboard.putString("CLIMBING:", "in phase 20, raising front legs...");
+          SmartDashboard.putString("CLIMBING:", "in phase 20, raising front legs quickly...");
         }
         raiseLegsClock = m_timer.get() - raiseLegsStart_time ;
         frontLiftLeft.set(-1) ; frontLiftRight.set(-1) ;
       }
-      //L("in phase 20.  left=" + frontLiftLeft.get() + " and right=" + frontLiftRight.get() ) ;
     }
-    SmartDashboard.putNumber("legs time:", raiseLegsClock);
-
 
      // end phase 20
+     // start phase 25
+     if (climbphase == 25) {
+      if (raiseLegsClock > 5) {
+        climbphase = 30 ;
+        frontLiftLeft.set(0);
+        frontLiftRight.set(0);
+        L("finished phase 25, time elapsed.");
+      } else {
+        if (raiseLegsClock == 0) {
+          raiseLegsStart_time = m_timer.get() - .1 ;
+          L("starting phase 25");
+          SmartDashboard.putString("CLIMBING:", "in phase 25, raising front legs slowly...");
+        }
+        raiseLegsClock = m_timer.get() - raiseLegsStart_time ;
+        frontLiftLeft.set(-.5) ; frontLiftRight.set(-.5) ;
+      }
+    }
+
+
+
+     // end phase 25
      // start phase 30
 
 
@@ -1175,8 +1194,7 @@ public void climb_six() {
           // turn off compressor during last 30 seconds of a match, regardless of switch.
       if (! compressorSwitch.get() && (m_timer.get() < 120 || m_timer.get() > 160)   && ! climbmode ) {
        // comment the next line with // if you don't want it to run.  remove them to have it run again.
-        //compressor.set(1);
-        compressorRelay.set(Relay.Value.kForward) ;  
+        //compressorRelay.set(Relay.Value.kForward) ;  
       } else {
         compressorRelay.set(Relay.Value.kOff) ;  
         //compressor.set(0);  
