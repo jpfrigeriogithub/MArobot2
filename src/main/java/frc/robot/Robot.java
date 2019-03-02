@@ -359,6 +359,7 @@ public class Robot extends TimedRobot {
     doRaiseTogetherLapTime = 0 ;
     in_evening_phase = false ;
     navx_check() ;
+    SmartDashboard.putString("CLIMBING:", "not started");
 
     basket_piston_fired_start_time = 0 ;
 
@@ -418,7 +419,7 @@ public class Robot extends TimedRobot {
       do_bucket_elevator() ;
     }
 
-    if (! climbmode) {  // NOT in CLIMBING MODE
+    if (! climbmode || abort_climb) {  // NOT in CLIMBING MODE
       backlift.set(0) ;
       backdrive.set(0) ;
       frontLiftRight.set(0) ;
@@ -434,16 +435,20 @@ public class Robot extends TimedRobot {
     gather_climb_data ();
 
 
-
   // Climbing Program.
   double Xpov = xbox.getPOV() ;
-  if (Xpov == 0 && navx_online && ! abort_climb){
-    if (! climbprogram_running) { L("climb program turned on.");}
-    climbprogram_running = true ;
-  } else if (Xpov == 180 ){
-    if (climb_six_running) { L("climb_six program turned on.");}
-    climb_six_running = true ;
-  
+  if (navx_online) {
+    if (Xpov == 0 && navx_online && ! abort_climb){
+      if (! climbprogram_running) { L("climb program turned on.");}
+      climbprogram_running = true ;
+    } else if (Xpov == 180 ){
+      if (climb_six_running) { L("climb_six program turned on.");}
+      climb_six_running = true ;
+    }
+  } else {
+    SmartDashboard.putString("CLIMBING:", "gyro off line, can't auto-climb, manual control only. sorry.");
+    climbprogram_running = false ;
+    climb_six_running = false ;
   }
 
   if (climbprogram_running && ! abort_climb) {
@@ -480,7 +485,6 @@ public class Robot extends TimedRobot {
 
 } // END teleoPeriodic
 
-// ***********************************************************************
 
 public void gather_climb_data () {
   // gathering gyro data.
@@ -509,8 +513,6 @@ public void gather_climb_data () {
   tippingDegree = Math.abs(tippingDegree);
 
 }
-
-// --------------------------------------------------
 
 public void doLowerTogether() {
 
@@ -546,18 +548,24 @@ public void doLowerTogether() {
 
 
 }
-// -------------------------------------------------------------
+
 public void doRaiseTogether() {
   if (backLiftAtRaiseLimit) { // the back is high enough.
     L("back lift has reached limit.");
     backlift.set(0);
-    if (tiltingDegree > 2) {
+    /*if (tiltingDegree > 2) {
       even_out_left_right(false); // 'true' means even out by going up first.
       return ;
-    }  else {
+    }  else { */
       frontLiftLeft.set(0);
       frontLiftRight.set(0) ;
       fully_raised = true ;
+
+      // lower it a smidge to get the wheels a bit straighter?
+      backlift.set(-1);  
+      try { Thread.sleep(30); }   catch(InterruptedException ex) {  Thread.currentThread().interrupt(); }
+      backlift.set(0);
+
       return ;
     /*  if (tippingForward && tippingDegree > 2) {
         L("back lift at limit, left and right are even, doing tip, current tip at: " + tippingForward);
@@ -571,7 +579,7 @@ public void doRaiseTogether() {
         fully_raised = true ;
         return ;
       } */
-    }
+   // }
   }
 
   // not yet raised, so put some power on all 3 motors
@@ -584,12 +592,13 @@ public void doRaiseTogether() {
   }
 
 
-    if (tiltingDegree > 5 || tippingDegree > 5) {
+    if (tiltingDegree > 10 || tippingDegree > 10) {
       L("aborting!  TILT:" + tiltingDegree + " and TIP:" + tippingDegree );
       SmartDashboard.putString("CLIMBING:", "aborted! falling over.");
       frontLiftLeft.set(0);
       frontLiftRight.set(0);
       backlift.set(0);
+      abort_climb = true ;
       return ;
     }
 
@@ -635,15 +644,11 @@ public void doRaiseTogether() {
 
   // getting this far means, apply power to all motors, have the back raise slightly more than the front.
   double M = 1.4 ;
-  backlift.set(.38 * M) ;
+  backlift.set(.4 * M) ;
   frontLiftRight.set(.525 * M) ;
   frontLiftLeft.set(.525 * M) ;
 
 }
-
-
-// ------------------------------------------------- 
-
 
 public void even_out_left_right(boolean go_up) {
   // adjust left and right heights until they are mostly even.
@@ -670,10 +675,6 @@ public void even_out_left_right(boolean go_up) {
 
 }
 
-
-
-// -------------------------------------------------
-// -------------------------------------------------
 public void lower_from_six() {
 
   // sensor check:
@@ -810,9 +811,6 @@ public void lower_from_six() {
 
 }
 
-
-// -------------------------------------------------
-// -------------------------------------------------
 public void climb_six() {
 
   if (abort_climb) { return ;}
@@ -824,6 +822,8 @@ public void climb_six() {
       climb_six_phase = 20 ;
       frontLiftLeft.set(0);
       frontLiftRight.set(0);
+      backlift.set(-1);  
+      try { Thread.sleep(10); }   catch(InterruptedException ex) {  Thread.currentThread().interrupt(); }
       backlift.set(0);
       return ;
     }
@@ -946,15 +946,10 @@ public void climb_six() {
 
 }
 
-// -------------------------------------------------
-// -------------------------------------------------
-
-
-
-  public void climbingprogram() {
+public void climbingprogram() {
    // L("in climbing program...");
 
-    if (climbphase == 0 && distance < 10) {
+    if (climbphase == 0 && distance > 15 && climbphase0timer == 0) {
       L("can't start climbphase, distance is too large, distance = " + distance) ;
       SmartDashboard.putString("CLIMBING:", "can't start, too far from wall, get closer!");
       return ;
@@ -1004,6 +999,7 @@ public void climb_six() {
           return ;
         }
         L("finished phase 10.");
+        L("first scoot time was: " + scootForwardclock) ;
         climbphase = 20 ;
         backdrive.set(0);
       } else {
@@ -1025,7 +1021,6 @@ public void climb_six() {
 
       } 
     }
-    L("first scoot time was: " + scootForwardclock) ;
     
 
       // end phase 10
@@ -1034,7 +1029,7 @@ public void climb_six() {
 
       // raising both front legs.  full speed, for X seconds.
     if (climbphase == 20) {
-      if (raiseLegsClock > 5) {
+      if (raiseLegsClock > 4) {
         climbphase = 25 ;
         frontLiftLeft.set(0);
         frontLiftRight.set(0);
@@ -1055,7 +1050,7 @@ public void climb_six() {
      // end phase 20
      // start phase 25
      if (climbphase == 25) {
-      if (raiseLegsClock > 5) {
+      if (raiseLegsClock > 2) {
         climbphase = 30 ;
         frontLiftLeft.set(0);
         frontLiftRight.set(0);
@@ -1091,6 +1086,7 @@ public void climb_six() {
       backdrive.set(0);
       m_robotDrive.arcadeDrive(0, 0 );
       L("finished phase 30.");
+      L("scoot time 2: " + scootForwardclock2);
     } else {
       if (scootForwardclock2 > 6) { 
         L("phase 30, scooting, took too long, aborting.");
@@ -1108,7 +1104,6 @@ public void climb_six() {
       backdrive.set(1) ;
       m_robotDrive.arcadeDrive(.4, 0 );
     } 
-    L("scoot time 2: " + scootForwardclock2);
    }
 
 
@@ -1122,6 +1117,7 @@ public void climb_six() {
       backlift.set(0);
       L("finished phase 40, time elapsed.");
       SmartDashboard.putString("CLIMBING:", "COMPLETE");
+      L("raise legs clock: " + raisebackclock);
     } else {
       if (raisebackclock == 0) {
          raisebackStart_time = m_timer.get() - .1 ;
@@ -1132,7 +1128,6 @@ public void climb_six() {
       backlift.set(-.3) ;
     } 
     }
-    L("raise legs clock: " + raisebackclock);
 
   } // end climbing program
 
@@ -1371,11 +1366,6 @@ public void climb_six() {
     
 }
 
-
-
-
-
-
 public void pixy_driving () {
   // PIXY ------------------------------------------------------
   if (m_stick.getRawButton(8) || xbox.getRawButton(3)) {
@@ -1405,9 +1395,6 @@ public void pixy_driving () {
     
   }
 }
-
-
-
 
 public void pov_driving () {
   // *******************************************************
@@ -1451,10 +1438,6 @@ public void pov_driving () {
   }
 }
 
-
-
-
-
 public void shoot_ball_from_bucket() {
   // --------------------------------------------------------------
     // piston 2 = SHOOT THE BALL from BASKET piston
@@ -1477,11 +1460,6 @@ public void shoot_ball_from_bucket() {
   }
 }
 
-
-
-
-
-
 public void do_hatch_piston () {
   // ---------------------------------------------------------
   //  HATCH PISTON
@@ -1493,10 +1471,6 @@ public void do_hatch_piston () {
     piston.set(DoubleSolenoid.Value.kReverse);
   }
 }
-
-
-
-
 
 public void do_hatch_motor() {
   /// HATCH MOTOR  ----------------------------------------
@@ -1522,11 +1496,6 @@ public void do_hatch_motor() {
   SmartDashboard.putBoolean("Hatch Hook is UP:",hatch_up );
 }
 
-
-
-
-
-
 public void do_bucket_elevator() {
   // BUCKET ELEVATOR  -------------------------------------
     double Xzrotate = xbox.getRawAxis(3);
@@ -1537,8 +1506,6 @@ public void do_bucket_elevator() {
       bucketelevator.set(0);
     }
 }
-
-
 
 
 
