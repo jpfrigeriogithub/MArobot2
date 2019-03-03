@@ -1,4 +1,4 @@
-package frc.robot;  // stuff..
+package frc.robot;  // stuff..1
 
 import edu.wpi.first.wpilibj.Joystick;
 //import edu.wpi.first.wpilibj.PWMVictorSPX;
@@ -788,7 +788,7 @@ public void lower_from_six() {
 
     // raise all the legs
     if (lower_phase == 60) {
-      if (lower_phase_60_timer > 3){
+      if (lower_phase_60_timer > 4){
          backlift.set(0);
          frontLiftLeft.set(0);
          frontLiftRight.set(0);
@@ -1189,7 +1189,7 @@ public void climbingprogram() {
           // turn off compressor during last 30 seconds of a match, regardless of switch.
       if (! compressorSwitch.get() && (m_timer.get() < 120 || m_timer.get() > 160)   && ! climbmode ) {
        // comment the next line with // if you don't want it to run.  remove them to have it run again.
-        //compressorRelay.set(Relay.Value.kForward) ;  
+        compressorRelay.set(Relay.Value.kForward) ;  
       } else {
         compressorRelay.set(Relay.Value.kOff) ;  
         //compressor.set(0);  
