@@ -48,6 +48,9 @@ import io.github.pseudoresonance.pixy2api.Pixy2CCC.Block ;
  */
 public class Robot extends TimedRobot {
 
+  // change to "true" to use it.
+  boolean USE_COMPRESSOR = false ;
+
   boolean tiltingLeft = false ;
   boolean tiltingRight = false;
   boolean tippingForward = false ; 
@@ -155,6 +158,16 @@ public class Robot extends TimedRobot {
   boolean encoderBlastvalue = true ; */
   Encoder motorEnc = new Encoder (8,9);
 
+
+  Encoder cimFrontRightObj = new Encoder (2,3) ;
+  double cimFrontRight = 0 ;
+  Encoder cimFrontLeftObj = new Encoder (4,5);
+  double cimFrontLeft = 0 ;
+  Encoder cimBackObj = new Encoder (6,7);
+  double cimBack = 0 ;
+  boolean CIM_zero_set = false ;
+
+
   double R = 1 ;  // reverse mode tracker
 
   Spark frontLiftRight = new Spark(5);
@@ -253,9 +266,13 @@ public class Robot extends TimedRobot {
     FLATyaw = ahrs.getYaw();
 
     bucket_zero_has_been_set = true ;
-    motorEnc.reset();
+    motorEnc.reset();  
 
     basket_piston_fired_start_time = 0 ;
+
+    CIM_zero_set = true ;
+    cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; 
+    
 
   }
 
@@ -264,18 +281,22 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousPeriodic() {
-
+        boolean lower_from_six_aborted = false ;
         //  button 4 on xbox control determines if climb mode is on or off.
         if (xbox.getRawButton(4)) {  
           if ( ! climbmode) { L("A: switched into climbmode.");}
           climbmode = true ;  
         } else { 
-          if ( climbmode) { L("A: switched out of climbmode.");}
+          if ( climbmode) { 
+            L("A: switched out of climbmode.");
+            lower_from_six_aborted = true ;
+          }
           climbmode = false ; 
           backlift.set(0) ;
           backdrive.set(0);
           frontLiftLeft.set(0);
           frontLiftRight.set(0) ;
+          
         }
         SmartDashboard.putBoolean("CLIMB MODE:", climbmode);
 
@@ -288,6 +309,7 @@ public class Robot extends TimedRobot {
     do_distance_sensors() ;
     do_reverse_mode() ;
     get_throttle_value() ;
+    manual_climbing() ;
 
     if (! climbmode) {
       SLD() ; // straight line driving.
@@ -303,7 +325,7 @@ public class Robot extends TimedRobot {
 
     // if we are IN climbmode, since this is autonomous, it can only mean we are climbing 
     // off of the 6" platoform.
-    if (climbmode) {
+    if (climbmode && ! lower_from_six_aborted) {
       lower_from_six() ;
     }
     
@@ -336,6 +358,10 @@ public class Robot extends TimedRobot {
     }
     if (! bucket_zero_has_been_set) {
         motorEnc.reset();
+    }
+
+    if (! CIM_zero_set) {
+      cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; 
     }
 
 
@@ -403,6 +429,7 @@ public class Robot extends TimedRobot {
 
     // ULTRA sensors, under the robot, used to see if we've moved over after climbing.
     do_distance_sensors() ;
+    do_CIM_encoders() ;
 
 
     if (! climbmode) {
@@ -485,6 +512,15 @@ public class Robot extends TimedRobot {
 
 } // END teleoPeriodic
 
+// *******************************************************
+
+public void do_CIM_encoders() {
+  cimBack = cimBackObj.getDistance();
+  cimFrontLeft = cimFrontLeftObj.getDistance() ;
+  cimFrontRight = cimFrontRightObj.getDistance() ;
+  String allOfThem = "B:" + cimBack + " FL:" + cimFrontLeft + " FR:" + cimFrontRight ;
+  SmartDashboard.putString("CIM VALUES:", allOfThem);
+}
 
 public void gather_climb_data () {
   // gathering gyro data.
@@ -1128,13 +1164,9 @@ public void climbingprogram() {
       backlift.set(-.3) ;
     } 
     }
+} 
 
-  } // end climbing program
-
-
-  // ------------------------------------------------
-  public void manual_climbing() {
-    SmartDashboard.putString("MC A DOING MANUAL CLIMB", "YES") ;
+public void manual_climbing() {
     SmartDashboard.putBoolean("MC climbmode", climbmode ) ;
     double frontLiftRValue = xbox.getRawAxis(2);
     double frontLiftLValue = xbox.getRawAxis(0);
@@ -1185,17 +1217,13 @@ public void climbingprogram() {
   public void do_airCompressor() {
       // AIR compressor  ----------------------------------------------
       SmartDashboard.putBoolean("COMPRESSORSWITCH:",compressorSwitch.get());
-      //if (! compressorSwitch.get() ) {
-          // turn off compressor during last 30 seconds of a match, regardless of switch.
-      if (! compressorSwitch.get() && (m_timer.get() < 120 || m_timer.get() > 160)   && ! climbmode ) {
-       // comment the next line with // if you don't want it to run.  remove them to have it run again.
+      // turn off compressor during last 30 seconds of a match, regardless of switch.
+      if (! compressorSwitch.get() && (m_timer.get() < 120 || m_timer.get() > 160)   && ! climbmode && USE_COMPRESSOR) {
         compressorRelay.set(Relay.Value.kForward) ;  
       } else {
         compressorRelay.set(Relay.Value.kOff) ;  
-        //compressor.set(0);  
       }
   }
-
 
   public void navx_check() {
     if ( (m_timer.get() - previous_navx_check) > .3 ) {
@@ -1213,16 +1241,12 @@ public void climbingprogram() {
     }
   }
 
-
-
-
   public void do_bucket_encoder() {
     // ENCODER:  how far as the bucket been raised/lowered?   
     // the zero value is taken from wherever it was at the start of teleop.
     double motorDistance = motorEnc.getDistance();
     SmartDashboard.putNumber("Bucket Lowered Distance:", motorDistance);
   }
-
 
   public void do_distance_sensors() {
     // DISTANCE SENSOR:  distance from wall on bucket/front side. 
@@ -1252,11 +1276,6 @@ public void climbingprogram() {
 
 
   }
-
-
-
-
-
 
   public void do_reverse_mode () {
     // REVERSE MODE: --------------------------------------------
@@ -1310,10 +1329,6 @@ public void climbingprogram() {
     //SmartDashboard.putNumber("turn tHrottle", turn_throttle);
   }
 
-
-
-
-
   public void SLD() {
     // -----------------------------------------------------------------------------------
     // straight line driving, using THUMB button on joy stick.
@@ -1349,10 +1364,6 @@ public void climbingprogram() {
         straightlinedrivingmode = false ;
     }
   }
-    
-
-
-
 
 
   public void normal_driving() {
