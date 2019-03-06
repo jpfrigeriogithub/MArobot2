@@ -100,6 +100,7 @@ public class Robot extends TimedRobot {
     double lower_phase_50_start_time = 0 ;
     double lower_phase_60_timer = 0 ;
     double lower_phase_60_start_time = 0 ;
+    double lower_phase_60_end_time = 0 ;
 
  // climbing to 6" platform:
   double climb_six_phase = 10 ;
@@ -292,6 +293,16 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
 
+      // artificial ending to autonom.
+      if ( m_timer.get() > 15) {
+        backlift.set(0) ;
+        backdrive.set(0);
+        frontLiftLeft.set(0);
+        frontLiftRight.set(0) ;
+        m_robotDrive.arcadeDrive(0,0);
+        return ;
+      }
+
         //  button 4 on xbox control determines if climb mode is on or off.
         if (xbox.getRawButton(4)) {  
           if ( ! climbmode) { L("A: switched into climbmode.");}
@@ -306,6 +317,7 @@ public class Robot extends TimedRobot {
           backdrive.set(0);
           frontLiftLeft.set(0);
           frontLiftRight.set(0) ;
+          m_robotDrive.arcadeDrive(0,0);
           
         }
         SmartDashboard.putBoolean("CLIMB MODE:", climbmode);
@@ -373,6 +385,7 @@ public class Robot extends TimedRobot {
       cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; 
     }
 
+    cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; // xxx
 
     // climbing stuff
     climbmode = false ;
@@ -419,8 +432,9 @@ public class Robot extends TimedRobot {
       climbmode = false ; 
     }
     SmartDashboard.putBoolean("CLIMB MODE:", climbmode);
-    raise_all_legs_teleop() ;
-
+    
+    // xxxc raise_all_legs_teleop() ;
+       //xxx
 
     thumb = m_stick.getRawButton(2);
 
@@ -596,17 +610,26 @@ public void doLowerTogether() {
 
 }
 
-public void raise_front_legs () {
+public void raise_front_legs ( double threshold) {
   // raise at full speed until we're almost there.  then slow down near the end.
-  if (legs_are_up) { 
+  if (cimFrontLeft < threshold) { 
     frontLiftLeft.set(0) ;
+  }
+  if (cimFrontRight < threshold) {
     frontLiftRight.set(0) ;
+  }
+  if (cimFrontLeft < threshold && cimFrontRight < threshold) {
     return ;
   }
-  if (total_front_turns < 500) {
-    frontLiftLeft.set(-.5) ; frontLiftRight.set(-.5) ;
+  if (cimFrontLeft < 300) {
+    frontLiftLeft.set(-.5) ; 
   } else {
-    frontLiftLeft.set(-1) ; frontLiftRight.set(-1) ;
+    frontLiftLeft.set(-1) ;
+  }  
+  if (cimFrontRight < 300) {
+    frontLiftRight.set(-.5) ;
+  } else {
+     frontLiftRight.set(-1) ;
   }
 
 }
@@ -815,6 +838,7 @@ public void lower_from_six() {
     L("middleheight sensor reading bad, aborting lowering. sensor = " + middleHeight) ;
     return ;
   }
+  
 
 
   if (tiltingDegree > 10 || tippingDegree > 10) {
@@ -827,15 +851,15 @@ public void lower_from_six() {
     return ;
   }
 
-  // lower wheels
+  // lower wheels 
   if (lower_phase == 10) {
-    if (lower_phase_10_timer > 1){
+    if (lower_phase_10_timer > 1.5){
       backlift.set(0) ;
       L("lower phase 10 time elapsed. " + allOfThem);
       lower_phase = 30 ;
       return ;
     }
-    if (cimBackR > 300) {
+    if (cimBackR > 400) {
       backlift.set(0) ;
       L("lower phase 10 ended by encoder. " + allOfThem);
       lower_phase = 30 ;
@@ -886,7 +910,7 @@ public void lower_from_six() {
   }
   
 
-    // lower front legs.
+    // lower front legs. 
     if (lower_phase == 40) {
       if (lower_phase_40_timer > 3){
         frontLiftLeft.set(0);
@@ -895,21 +919,28 @@ public void lower_from_six() {
         L("lower phase 40 finished, time elapsed. " + allOfThem);
         return ;
       }
-      if (total_front_turns > 2300) {
-        frontLiftLeft.set(0);
-        frontLiftRight.set(0) ;
+      if (cimFrontLeft > 1900 && cimFrontRight > 2000) {
         lower_phase = 50 ;
         L("lower phase 40 finished, by encoder. " + allOfThem);
         return ;
       }
       if (lower_phase_40_timer == 0){
         L("entering lower phase 40.");
-        SmartDashboard.putString("LOWERING:", "phase 40 - lowering front legs 7 inches..."); 
         lower_phase_40_start_time = m_timer.get() - .1 ;
       }
+      if (cimFrontLeft > 1900) {
+        frontLiftLeft.set(0);
+      } else {
+        frontLiftLeft.set(1) ;
+      }
+      if (cimFrontRight > 2000 ) {
+        frontLiftRight.set(0) ;
+      } else {
+        frontLiftRight.set(1) ;
+      }
+      SmartDashboard.putString("LOWERING:", "phase 40 - lowering legs. FR:" + frontLiftRight.get() + " FL:" + frontLiftLeft.get());
       lower_phase_40_timer = m_timer.get() - lower_phase_40_start_time ;
-      frontLiftLeft.set(1) ;
-      frontLiftRight.set(1) ;
+    
     }
 
 
@@ -918,7 +949,7 @@ public void lower_from_six() {
       if (lower_phase_50_timer > 4){
         //backdrive.set(0);
         lower_phase = 60 ;
-        L("lower phase 50 finished, time elapsed.");
+        L("lower phase 50 finished, drove away from platform, time elapsed.");
         return ;
       }
       if (lower_phase_50_timer == 0){
@@ -931,24 +962,29 @@ public void lower_from_six() {
     }
 
 
-    // raise all the legs
+    // raise all the legs , while driving backwards.
+    boolean legs_way_up = false ;
+    if (cimFrontLeft < -100 && cimFrontRight < -100) { legs_way_up = true ;}
     if (lower_phase == 60) {
-      if (lower_phase_60_timer > 4){
+      if (lower_phase_60_timer > 6){
          backlift.set(0);
          frontLiftLeft.set(0);
          frontLiftRight.set(0);
          lower_phase = 70 ;
          L("lower phase 60 finished, time elapsed. " + allOfThem);
          SmartDashboard.putString("LOWERING:", "COMPLETE"); 
+        lower_phase_60_end_time = m_timer.get() ;
          return ;
       }
-      if (legs_are_up && cimBackR < -2300 ) { //&& wheels_are_up) {
+      if (legs_way_up && cimBackR < -2300 ) { //&& wheels_are_up) {
         backlift.set(0);
         frontLiftLeft.set(0);
         frontLiftRight.set(0);
         L("lower phase 60 finished, by encoder. " + allOfThem);
         double total = m_timer.get() - lower_phase_10_start_time ;
         SmartDashboard.putString("LOWERING:", "COMPLETE. Time= " + total); 
+        lower_phase = 70 ;
+        lower_phase_60_end_time = m_timer.get() ;
         return ;
       }
       if (lower_phase_60_timer == 0){
@@ -957,9 +993,9 @@ public void lower_from_six() {
         lower_phase_60_start_time = m_timer.get() - .1 ;
       }
       lower_phase_60_timer = m_timer.get() - lower_phase_60_start_time ;
-      raise_front_legs();
-      m_robotDrive.arcadeDrive(.8, 0 );
-      if (cimBackR < -2300 ) {
+      raise_front_legs(-100);
+      m_robotDrive.arcadeDrive(.8, -.2 );  // and a little left.
+      if (cimBackR < -2400 ) {
         backlift.set(0);
       } else {
         backlift.set(-.45);
@@ -969,33 +1005,43 @@ public void lower_from_six() {
 
     // don't keep auto-driving if a second has passed. or if joystick took over.
     if (lower_phase == 70) {
-      if ((m_timer.get() - lower_phase_60_timer) > 1 ) {
-        m_robotDrive.arcadeDrive(0, 0 );
+      if ((m_timer.get() - lower_phase_60_end_time) > 1 ) {
+        SmartDashboard.putString("LOWERING:", "70 drive off stop "); 
+      //  m_robotDrive.arcadeDrive(0, 0 );
         lower_phase = 80 ;  // only do it once, in case joy-stick has taken over.
       }
     }
+
+    if (lower_phase >= 60){ // make sure legs are up.
+      raise_front_legs(-100);
+      if (cimBackR < -2400 ) {
+        backlift.set(0);
+      } else {
+        backlift.set(-.5);
+      }
+    }
+
+
 
 }
 
 public void raise_all_legs_teleop() {
   double seconds = m_timer.get() - timer_teleop ;
-  if ( seconds > 5 && seconds < 10) { 
+  if ( seconds < 3 ) { 
       backlift.set(-.4);
       frontLiftLeft.set(-.6);
       frontLiftRight.set(-.6);
       SmartDashboard.putString("leg retract", "raising");
   } 
-  else if (seconds > 10 && seconds < 12) {
+  else if (seconds > 3 && seconds < 4) {
     backlift.set(0);
     frontLiftLeft.set(0);
     frontLiftRight.set(0);
     cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ;
     SmartDashboard.putString("leg retract", "resetting CIMs");
 
-  } else if (seconds > 12) {
+  } else if (seconds > 4) {
     SmartDashboard.putString("leg retract", "done.");
-  } else {
-    SmartDashboard.putString("leg retract", "not started.");
   }
 
 
@@ -1005,6 +1051,16 @@ public void raise_all_legs_teleop() {
 public void climb_six() {
 
   if (abort_climb) { return ;}
+
+  if (tiltingDegree > 10 || tippingDegree > 10) {
+    L("aborting!  TILT:" + tiltingDegree + " and TIP:" + tippingDegree );
+    SmartDashboard.putString("CLIMBING:", "aborted! falling over.");
+    frontLiftLeft.set(0);
+    frontLiftRight.set(0);
+    backlift.set(0);
+    abort_climb = true ;
+    return ;
+  }
 
   // Phase 10 - raise the whole thing 7 inches.
   if (climb_six_phase  == 10 ) { 
@@ -1073,7 +1129,7 @@ public void climb_six() {
         SmartDashboard.putString("CLIMBING:","in phase 30, raising front legs...");
       }
       raiseLegsClock = m_timer.get() - raiseLegsStart_time ;
-      raise_front_legs();
+      raise_front_legs(150);
     }
   
 
@@ -1231,7 +1287,7 @@ public void climbingprogram() {
           SmartDashboard.putString("CLIMBING:", "in phase 20, raising legs.");
         }
         raiseLegsClock = m_timer.get() - raiseLegsStart_time ;
-        raise_front_legs();      
+        raise_front_legs(200);      
       }
 
 
@@ -1239,24 +1295,17 @@ public void climbingprogram() {
       // drive it all forward with other drive wheels.
       if (climbphase == 30){
         double backHeight = backHeightSensor.getAverageVoltage();
-        if (backHeight < .3) {
-          if (scootForwardclock2 < 1) {
-            L("that was too fast for phase 30, aborting."); // sensor error.
-            SmartDashboard.putString("CLIMBING:", "phase 30 aborted, sensor malfunction.");
-            abort_climb = true ;
-            return ;
-          }
+        if (backHeight < .3  && scootForwardclock > 1) { // at least 1 second must have elapsed, otherwise broken sensor,.
           climbphase = 40 ;
           backdrive.set(0);
           m_robotDrive.arcadeDrive(0, 0 );
-          L("finished phase 30.");
+          L("finished phase 30, by sensor.");
           L("scoot time 2: " + scootForwardclock2);
         } else {
           if (scootForwardclock2 > 6) { 
-            L("phase 30, scooting, took too long, aborting.");
-            SmartDashboard.putString("CLIMBING:", "phase 30 aborted, took too long.");
+            L("phase 30, scooting, sensor broke, ended by time elapsed.");
             backdrive.set(0); m_robotDrive.arcadeDrive(0, 0 );
-            abort_climb = true;
+            climbphase = 40 ;
             return ;
           }
           if (scootForwardclock2 == 0) {
