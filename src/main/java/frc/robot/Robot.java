@@ -52,8 +52,16 @@ import io.github.pseudoresonance.pixy2api.Pixy2CCC.Block ;
  */
 public class Robot extends TimedRobot {
 
+
+
+  // ************************************
   // change to "true" to use it.  or "false" to not use it.  compressor - CHANGE It Here! 
-  boolean USE_COMPRESSOR = false ;
+  boolean USE_COMPRESSOR = true  ;
+  // ************************************
+  boolean do_teleop_raise = true ;
+
+
+
 
   boolean tiltingLeft = false ;
   boolean tiltingRight = false;
@@ -385,7 +393,7 @@ public class Robot extends TimedRobot {
       cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; 
     }
 
-    cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; // xxx
+    //cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; //
 
     // climbing stuff
     climbmode = false ;
@@ -433,8 +441,7 @@ public class Robot extends TimedRobot {
     }
     SmartDashboard.putBoolean("CLIMB MODE:", climbmode);
     
-    // xxxc raise_all_legs_teleop() ;
-       //xxx
+    raise_all_legs_teleop() ;
 
     thumb = m_stick.getRawButton(2);
 
@@ -1026,6 +1033,7 @@ public void lower_from_six() {
 }
 
 public void raise_all_legs_teleop() {
+  if (! do_teleop_raise) { return ;}
   double seconds = m_timer.get() - timer_teleop ;
   if ( seconds < 3 ) { 
       backlift.set(-.4);
@@ -1852,21 +1860,17 @@ public void do_hatch_motor() {
   // boolean button6 = m_stick.getRawButton(6); // UP
   // boolean button4 = m_stick.getRawButton(4);  // DOWN
   double Xyaxis = xbox.getRawAxis(1);
+
   if (Xyaxis > .8) { // DOWN
     hatch_up = false ;
-    hatchmotor.set(1);
+    hatchmotor.set(.5);
   } else if (Xyaxis < -.8){ // UP
     hatch_up = true ;
-    hatchmotor.set(-1);
+    hatchmotor.set(-.5);
   } else {
-    // keep a little upward force on it to keep it from falling.
-    if ( hatch_up) {
-      double idlevalue = -.4 ;
-      hatchmotor.set(idlevalue) ;
-    } else {
-      hatchmotor.set(0);
-    }
-  } 
+    hatchmotor.set(0);
+  }
+
   SmartDashboard.putNumber("Hatch motor:",hatchmotor.get() );
   SmartDashboard.putBoolean("Hatch Hook is UP:",hatch_up );
 }
