@@ -294,6 +294,8 @@ public class Robot extends TimedRobot {
 
     CIM_zero_set = true ;
     cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; 
+
+    piston.set(DoubleSolenoid.Value.kForward);
     
 
   }
@@ -376,7 +378,6 @@ public class Robot extends TimedRobot {
     try { ahrs.resetDisplacement() ; } finally {};
     hatch_up = false ;
     if (! time_has_been_reset) { m_timer.reset();  m_timer.start();}
-    piston.set(DoubleSolenoid.Value.kReverse);
 
     timer_teleop = m_timer.get() ;
 
@@ -866,7 +867,7 @@ public void lower_from_six() {
       lower_phase = 30 ;
       return ;
     }
-    if (cimBackR > 400) {
+    if (cimBackR > 600) {
       backlift.set(0) ;
       L("lower phase 10 ended by encoder. " + allOfThem);
       lower_phase = 30 ;
@@ -926,7 +927,7 @@ public void lower_from_six() {
         L("lower phase 40 finished, time elapsed. " + allOfThem);
         return ;
       }
-      if (cimFrontLeft > 1900 && cimFrontRight > 2000) {
+      if (cimFrontLeft > 2200 && cimFrontRight > 2300) {
         lower_phase = 50 ;
         L("lower phase 40 finished, by encoder. " + allOfThem);
         return ;
@@ -1655,25 +1656,42 @@ public void do_reverse_mode () {
     // REVERSE MODE: --------------------------------------------
     // change direction of joystick and which cameras to show.
     boolean button7 = m_stick.getRawButtonPressed(7);
+
+      String host = "mjpg:http://10.65.80.2" ;
+      host = "mjpg:http://roboRIO-6580-FRC.local" ;
     
     if (reversemode && button7){
       reversemode = false ;
       // change view
       String[] newstream = new String[1] ;
-       //      newstream[0] = "mjpg:http://roboRIO-6580-FRC.local:1183/?action=stream" ;
-      newstream[0] = "mjpg:http://10.65.80.2:1183/?action=stream" ;
+      
+      // newstream[0] = "mjpg:http://roboRIO-6580-FRC.local:1183/?action=stream" ;
+      // newstream[0] = "mjpg:http://10.65.80.2:1183/?action=stream" ;
+      newstream[0] = host + ":1183/?action=stream" ;
+
       camLeftStream.setStringArray(newstream);
-      newstream[0] = "mjpg:http://10.65.80.2:1184/?action=stream" ;
+      
+      // newstream[0] = "mjpg:http://roboRIO-6580-FRC.local:1183/?action=stream" ;
+      //newstream[0] = "mjpg:http://10.65.80.2:1184/?action=stream" ;
+      newstream[0] = host + ":1184/?action=stream" ;
+
       camRightStream.setStringArray(newstream);
   
     } else if (! reversemode && button7){
       reversemode = true ;
         // change camera view:
       String[] newstream = new String[1] ;
-      newstream[0] = "mjpg:http://10.65.80.2:1181/?action=stream" ;
+      //newstream[0] = "mjpg:http://10.65.80.2:1181/?action=stream" ;
+      newstream[0] = host + ":1181/?action=stream" ;
+
+
       camLeftStream.setStringArray(newstream);
+      
+      
       newstream[0] = "mjpg:http://10.65.80.2:1182/?action=stream" ;
+      newstream[0] = host + ":1182/?action=stream" ;
       camRightStream.setStringArray(newstream);
+
     }
     
     if (reversemode) { R = -1 ; } else { R = 1 ; }
