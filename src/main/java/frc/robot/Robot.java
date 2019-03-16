@@ -1,4 +1,4 @@
-package frc.robot;  // stuff..12
+package frc.robot;  // stuff..123
 
 import edu.wpi.first.wpilibj.Joystick;
 //import edu.wpi.first.wpilibj.PWMVictorSPX;
@@ -157,7 +157,7 @@ public class Robot extends TimedRobot {
   AnalogInput myRangeFinder = new AnalogInput(1) ;
 
 
-  //Spark compressor = new Spark(4);
+  Spark compressor = new Spark(4);
   Relay compressorRelay = new Relay(0);
   //DigitalInput limitSwitch ;
   DigitalInput compressorSwitch = new DigitalInput(0); 
@@ -174,6 +174,7 @@ public class Robot extends TimedRobot {
   boolean encoderAlastvalue = false ; 
   boolean encoderBlastvalue = true ; */
   Encoder motorEnc = new Encoder (8,9);
+  double motorDistance = 0 ;
 
 
     // CIM Encoders:
@@ -196,7 +197,7 @@ public class Robot extends TimedRobot {
 
 
 
-  double R = 1 ;  // reverse mode tracker
+  double R = -1 ;  // reverse mode tracker
 
   Spark frontLiftRight = new Spark(5);
   Spark frontLiftLeft = new Spark(6);
@@ -492,26 +493,26 @@ public class Robot extends TimedRobot {
 
     double Xpov = xbox.getPOV() ;
     if (navx_online) {
-      if (Xpov == 0 && navx_online && ! abort_climb){
+      if (Xpov == 0 && ! abort_climb){
         if (! climbprogram_running) { L("climb program turned on.");}
         climbprogram_running = true ;
-      } else if (Xpov == 180 ){
-        if (climb_six_running) { 
-          if (! climb_six_running) { L("climb_six program turned on.");}
-          climb_six_running = true ;
-        }
+      } else if (Xpov == 180 ){ 
+        if (! climb_six_running) { L("climb_six program turned on.");}
+        climb_six_running = true ;
       }
     } else {
       SmartDashboard.putString("CLIMBING:", "gyro off line, can't auto-climb, manual control only. sorry.");
       climbprogram_running = false ;
       climb_six_running = false ;
     }
+    SmartDashboard.putString("AA DEBUG:", "here 1 " + climb_six_running);
 
     if (climbprogram_running && ! abort_climb) {
       climbingprogram() ;
       return ;
     }
     if (climb_six_running && ! abort_climb) {
+      SmartDashboard.putString("AA DEBUG:", "here 2");
       climb_six();
       return ;
     }
@@ -555,7 +556,7 @@ public void do_CIM_encoders() {
   cimFrontRight = cimFrontRightObj.getDistance() ;
   total_front_turns = ((cimFrontLeft + cimFrontRight) / 2 );
   if (cimFrontLeft < 200 && cimFrontRight < 200) {  legs_are_up = true ; } else { legs_are_up = false ;  }
-  if (cimBackR < 200) { wheels_are_up = true; } else { wheels_are_up = false ;}
+  if (cimBackR < 300) { wheels_are_up = true; } else { wheels_are_up = false ;}
   allOfThem =  "FL:" + cimFrontLeft + " FR:" + cimFrontRight + " BACK:" + cimBackR;
   SmartDashboard.putString("CIM VALUES:", allOfThem);
 }
@@ -650,7 +651,7 @@ public void raise_front_legs ( double threshold) {
 public void doRaiseTogether() {
 
   double M = 1.5 ; // multiplier for speed.
-  double backliftsetvalue = .5 * M ;
+  double backliftsetvalue = .56 * M ;
   double frontliftsetvalue = .525 * M ;
 
   if (doRaiseTogetherStartTime == 0) {
@@ -673,11 +674,12 @@ public void doRaiseTogether() {
     return ;
   }
 
-  if (cimFrontLeft > 6600 && cimFrontRight > 6600 && cimBackR > 6600) { 
+  if (cimFrontLeft > 6730 && cimFrontRight > 6730 && cimBackR > 6730) { 
     at_20 = true ; 
     frontLiftLeft.set(0);
     frontLiftRight.set(0);
     backlift.set(0);
+    L("reached limit by CIM specs.");
     return ;
   }
   if (backLiftAtRaiseLimit) {
@@ -1539,7 +1541,7 @@ public void climbingprogram() {
 
     // lift up the wheels
     if (climbphase == 40) {
-      if (raisebackclock >= 6) { 
+      if (raisebackclock >= 5) { 
         L("phase 40, raising wheels, took too long, aborting.");
         SmartDashboard.putString("CLIMBING:", "phase 40 aborted, took too long.");
         backlift.set(0);  m_robotDrive.arcadeDrive(0, 0 );
@@ -1561,7 +1563,7 @@ public void climbingprogram() {
         SmartDashboard.putString("CLIMBING:", "in phase 40, raising back wheels.");
       }
       raisebackclock = m_timer.get() - raisebackStart_time ;      
-      backlift.set(-.9) ;
+      backlift.set(-.6) ;
       m_robotDrive.arcadeDrive(-.2, 0 );
     }
 
@@ -1777,10 +1779,14 @@ public void manual_climbing() {
     if (RaiseRobotRear && ! backLiftAtRaiseLimit) {
         backlift.set(.7) ;
     } else if (LowerRobotRear){
-        backlift.set(-.7) ;
+        backlift.set(-.3) ;
+    } else if (xbox.getRawButton(11)) {
+        backlift.set(xbox.getRawAxis(3));
     } else {
         backlift.set(0) ;
     }
+
+
 
     // DRIVE:
     if (xbox.getRawButton(3)) { 
@@ -1804,11 +1810,13 @@ public void do_airCompressor() {
       // AIR compressor  ----------------------------------------------
       SmartDashboard.putBoolean("COMPRESSORSWITCH:",compressorSwitch.get());
       // turn off compressor during last 30 seconds of a match, regardless of switch.
-      if (! compressorSwitch.get() && (m_timer.get() < 120 || m_timer.get() > 160)   && ! climbmode && USE_COMPRESSOR) {
+     if (! compressorSwitch.get() && (m_timer.get() < 120 || m_timer.get() > 160)   && ! climbmode && USE_COMPRESSOR) {
         compressorRelay.set(Relay.Value.kForward) ;  
-      } else {
+        compressor.set(1);
+     } else {
         compressorRelay.set(Relay.Value.kOff) ;  
-      }
+        compressor.set(0);
+     }
 }
 
 public void navx_check() {
@@ -1830,7 +1838,7 @@ public void navx_check() {
 public void do_bucket_encoder() {
     // ENCODER:  how far as the bucket been raised/lowered?   
     // the zero value is taken from wherever it was at the start of teleop.
-    double motorDistance = motorEnc.getDistance();
+    motorDistance = motorEnc.getDistance();
     SmartDashboard.putNumber("Bucket Lowered Distance:", motorDistance);
 }
 
@@ -1871,14 +1879,10 @@ public void do_reverse_mode () {
       // change view
       String[] newstream = new String[1] ;
       
-      // newstream[0] = "mjpg:http://roboRIO-6580-FRC.local:1183/?action=stream" ;
-      // newstream[0] = "mjpg:http://10.65.80.2:1183/?action=stream" ;
       newstream[0] = host + ":1183/?action=stream" ;
 
       camLeftStream.setStringArray(newstream);
-      
-      // newstream[0] = "mjpg:http://roboRIO-6580-FRC.local:1183/?action=stream" ;
-      //newstream[0] = "mjpg:http://10.65.80.2:1184/?action=stream" ;
+
       newstream[0] = host + ":1184/?action=stream" ;
 
       camRightStream.setStringArray(newstream);
@@ -1887,7 +1891,7 @@ public void do_reverse_mode () {
       reversemode = true ;
         // change camera view:
       String[] newstream = new String[1] ;
-      //newstream[0] = "mjpg:http://10.65.80.2:1181/?action=stream" ;
+     
       newstream[0] = host + ":1181/?action=stream" ;
 
 
@@ -1900,7 +1904,7 @@ public void do_reverse_mode () {
 
     }
     
-    if (reversemode) { R = -1 ; } else { R = 1 ; }
+    if (reversemode) { R = 1 ; } else { R = -1 ; }
       SmartDashboard.putBoolean("REVERSE MODE:", reversemode);
     // ---------------------------------------
 }
@@ -2087,10 +2091,10 @@ public void do_hatch_motor() {
 
   if (Xyaxis > .8) { // DOWN
     hatch_up = false ;
-    hatchmotor.set(.4);
+    hatchmotor.set(.42);
   } else if (Xyaxis < -.8){ // UP
     hatch_up = true ;
-    hatchmotor.set(-.4);
+    hatchmotor.set(-.42);
   } else {
     hatchmotor.set(0);
   }
@@ -2102,9 +2106,24 @@ public void do_hatch_motor() {
 public void do_bucket_elevator() {
   // BUCKET ELEVATOR  -------------------------------------
     double Xzrotate = xbox.getRawAxis(3);
-    SmartDashboard.putNumber("ZRaxis:",Xzrotate);
+    double motorRate = motorEnc.getRate();
+    SmartDashboard.putString("Bucket: ZRaxis & Rate:",Xzrotate + " / " + motorRate);
+
+
+    boolean stop_retracting = false ;
+    boolean stop_extending = false ;
+    if (motorDistance < 0){ stop_retracting = true ;}
+    if (motorDistance > 250) { stop_extending = true ;}
+    if (xbox.getRawButton(11)) { stop_retracting = false ;  stop_extending = false ;}
+
+
+    double drive_value = .4 ;
+    if (motorRate > 50) { drive_value = drive_value * .7 ;}
+
     if (Math.abs(Xzrotate) > .2) {
-      bucketelevator.set(-Xzrotate * .2 );
+      if (Xzrotate > 0 && stop_retracting ) { bucketelevator.set(0); return ;}
+      if (Xzrotate < 0 && stop_extending ) { bucketelevator.set(0); return ; }
+      bucketelevator.set(-Xzrotate * drive_value );
     } else {
       bucketelevator.set(0);
     }
