@@ -56,7 +56,7 @@ public class Robot extends TimedRobot {
 
   // ************************************
   // change to "true" to use it.  or "false" to not use it.  compressor - CHANGE It Here! 
-  boolean USE_COMPRESSOR = true  ;
+  boolean USE_COMPRESSOR = false  ;
   // ************************************
   boolean do_teleop_raise = false ;
 
@@ -651,7 +651,7 @@ public void raise_front_legs ( double threshold) {
 public void doRaiseTogether() {
 
   double M = 1.5 ; // multiplier for speed.
-  double backliftsetvalue = .56 * M ;
+  double backliftsetvalue = .7 * M ;
   double frontliftsetvalue = .525 * M ;
 
   if (doRaiseTogetherStartTime == 0) {
@@ -674,14 +674,16 @@ public void doRaiseTogether() {
     return ;
   }
 
-  if (cimFrontLeft > 6730 && cimFrontRight > 6730 && cimBackR > 6730) { 
-    at_20 = true ; 
+  //if (cimFrontLeft > 6730 && cimFrontRight > 6730 && cimBackR > 6730) { 
+  if (cimFrontLeft > 7730 && cimFrontRight > 7730 && cimBackR > 7730) { 
+      at_20 = true ; 
     frontLiftLeft.set(0);
     frontLiftRight.set(0);
     backlift.set(0);
     L("reached limit by CIM specs.");
     return ;
   }
+
   if (backLiftAtRaiseLimit) {
     at_20 = true ; 
     frontLiftLeft.set(0);
@@ -692,7 +694,7 @@ public void doRaiseTogether() {
   }
 
   double lower_threshold = 100 ;
-  double upper_threshold = 300 ;
+  double upper_threshold = 150 ;
 
   if (doing_adjust) {
     if (Math.abs(total_front_turns - cimBackR) < lower_threshold){
@@ -2089,10 +2091,10 @@ public void do_hatch_motor() {
   // boolean button4 = m_stick.getRawButton(4);  // DOWN
   double Xyaxis = xbox.getRawAxis(1);
 
-  if (Xyaxis > .8) { // DOWN
+  if (Xyaxis > .8   ||  m_stick.getRawButton(11)) { // DOWN
     hatch_up = false ;
     hatchmotor.set(.42);
-  } else if (Xyaxis < -.8){ // UP
+  } else if (Xyaxis < -.8  || m_stick.getRawButton(9)){ // UP
     hatch_up = true ;
     hatchmotor.set(-.42);
   } else {
