@@ -56,7 +56,7 @@ public class Robot extends TimedRobot {
 
   // ************************************
   // change to "true" to use it.  or "false" to not use it.  compressor - CHANGE It Here! 
-  boolean USE_COMPRESSOR = false  ;
+  boolean USE_COMPRESSOR = true  ;
   // ************************************
   boolean do_teleop_raise = false ;
 
@@ -536,7 +536,7 @@ public class Robot extends TimedRobot {
     }  // can't do anything w/out the gyro from here down.
 
     if (raiseALL) { 
-      doRaiseTogether() ;
+      doRaiseTogether_byGyro() ;
     } else if (lowerALL) {
       doLowerTogether() ;
     }
@@ -798,9 +798,9 @@ public void doRaiseTogether_byGyro() {
   }
 
   // getting this far means, apply power to all motors, have the back raise slightly more than the front.
-  double M = 1.5 ; // multiplier for speed.
+  double M = 1 ; // multiplier for speed.
   double backliftsetvalue = .7 * M ;
-  double frontliftsetvalue = .525 * M ;
+  double frontliftsetvalue = 1 ;
   backlift.set(backliftsetvalue);
   frontLiftRight.set(frontliftsetvalue) ;
   frontLiftLeft.set(frontliftsetvalue) ;
