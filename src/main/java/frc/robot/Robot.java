@@ -1,4 +1,4 @@
-package frc.robot;  // stuff..123
+package frc.robot;  // stuff..1234
 
 import edu.wpi.first.wpilibj.Joystick;
 //import edu.wpi.first.wpilibj.PWMVictorSPX;
@@ -202,10 +202,10 @@ public class Robot extends TimedRobot {
   Spark frontLiftRight = new Spark(5);
   Spark frontLiftLeft = new Spark(6);
   
-
+  
   PWMVictorSPX backlift = new PWMVictorSPX(7);
   PWMVictorSPX backdrive = new PWMVictorSPX(8);
-
+  
 
   //Servo myservo = new Servo(2) ;
   AHRS ahrs = new AHRS(SerialPort.Port.kUSB);
@@ -674,8 +674,7 @@ public void doRaiseTogether() {
     return ;
   }
 
-  //if (cimFrontLeft > 6730 && cimFrontRight > 6730 && cimBackR > 6730) { 
-  if (cimFrontLeft > 7730 && cimFrontRight > 7730 && cimBackR > 7730) { 
+  if (cimFrontLeft > 6730 && cimFrontRight > 6730 && cimBackR > 6730) { 
       at_20 = true ; 
     frontLiftLeft.set(0);
     frontLiftRight.set(0);
@@ -726,33 +725,12 @@ public void doRaiseTogether_byGyro() {
   if (backLiftAtRaiseLimit) { // the back is high enough.
     L("back lift has reached limit.");
     backlift.set(0);
-    /*if (tiltingDegree > 2) {
-      even_out_left_right(false); // 'true' means even out by going up first.
-      return ;
-    }  else { */
-      frontLiftLeft.set(0);
-      frontLiftRight.set(0) ;
-      fully_raised = true ;
-
-
-      return ;
-    /*  if (tippingForward && tippingDegree > 2) {
-        L("back lift at limit, left and right are even, doing tip, current tip at: " + tippingForward);
-        frontLiftLeft.set(.5);
-        frontLiftRight.set(.5) ;
-        return ;
-      } else {
-        frontLiftLeft.set(0);
-        frontLiftRight.set(0) ;
-        L("back lift at limit, no longer tipping, finished full raise.");
-        fully_raised = true ;
-        return ;
-      } */
-   // }
+    at_20 = true ;
+    frontLiftLeft.set(0);
+    frontLiftRight.set(0) ;
+    fully_raised = true ;
+    return ;
   }
-
-  // not yet raised, so put some power on all 3 motors
-  // for some amount of time, then stop and even them out again, then do all three again, etc.
 
   if (doRaiseTogetherStartTime == 0) {
     doRaiseTogetherStartTime = m_timer.get() ;
@@ -761,7 +739,7 @@ public void doRaiseTogether_byGyro() {
   }
 
 
-    if (tiltingDegree > 10 || tippingDegree > 10) {
+  if (tiltingDegree > 10 || tippingDegree > 10) {
       L("aborting!  TILT:" + tiltingDegree + " and TIP:" + tippingDegree );
       SmartDashboard.putString("CLIMBING:", "aborted! falling over.");
       frontLiftLeft.set(0);
@@ -769,13 +747,14 @@ public void doRaiseTogether_byGyro() {
       backlift.set(0);
       abort_climb = true ;
       return ;
-    }
+  }
 
 
-     // even out every X seconds...
-     double LAPTIME = m_timer.get() - doRaiseTogetherLapTime ;
-     SmartDashboard.putNumber("MC: Laptime:", LAPTIME);
-     L("laptime: " + LAPTIME + " tilt:" + tiltingDegree + " tip:" + tippingDegree);
+  // even out every X seconds...
+  double LAPTIME = m_timer.get() - doRaiseTogetherLapTime ;
+  SmartDashboard.putNumber("MC: Laptime:", LAPTIME);
+  L("laptime: " + LAPTIME + " tilt:" + tiltingDegree + " tip:" + tippingDegree);
+
   if ( LAPTIME > .5) {
     if (! in_evening_phase) { 
       L("entering evening phase at " + m_timer.get() );
@@ -784,38 +763,47 @@ public void doRaiseTogether_byGyro() {
       backlift.set(0);
     }
     in_evening_phase = true ;
-    // EVEN OUT
-    L("tilted by " + tiltingDegree + " degrees");
+  
+    // EVEN OUT the TILT. (left vs right)
+    /*
+    L("evening. currently tilted by " + tiltingDegree + " degrees");
     if (tiltingDegree > 3) {
       backlift.set(0);
       even_out_left_right(true); // 'true' means even out by going up first.
       return ;
     } 
+    */
     
-    L("tipping by " + tippingDegree + " degrees.");
-    frontLiftLeft.set(0);
-    frontLiftRight.set(0);
+    if (tippingForward) {
+      L("evening: currently tipping forward by " + tippingDegree + " degrees.");
+    } else {
+      L("evening: currently tipping back by " + tippingDegree + " degrees."); 
+    }
+    //frontLiftLeft.set(0);
+    //frontLiftRight.set(0);
     if (tippingDegree > 2) {
-      if (tippingForward) { L("tipping forward") ;
+      if (tippingForward) { 
         backlift.set(-.5);
-      } else { L("tipping back") ;
+      } else { 
         backlift.set(1) ;
       }
       L("tip settings: backlift:" + backlift.get() + " frontright:" + frontLiftRight.get() + " frontleft:" + frontLiftLeft.get() );
       return ;
     }
+    // getting here means we're under X degrees again.  so shift out of evening phase.
     backlift.set(0);
-     // Once we are even, reset LAP time.
-     doRaiseTogetherLapTime = m_timer.get() ;
-     L("all evened out, continuing up... at  " + doRaiseTogetherLapTime);
-     in_evening_phase = false ;
+      doRaiseTogetherLapTime = m_timer.get() ;
+      L("all evened out, tip =" + tippingDegree + ", continuing up... at  " + doRaiseTogetherLapTime);
+      in_evening_phase = false ;
   }
 
   // getting this far means, apply power to all motors, have the back raise slightly more than the front.
-  double M = 1.4 ;
-  backlift.set(.4 * M) ;
-  frontLiftRight.set(.525 * M) ;
-  frontLiftLeft.set(.525 * M) ;
+  double M = 1.5 ; // multiplier for speed.
+  double backliftsetvalue = .7 * M ;
+  double frontliftsetvalue = .525 * M ;
+  backlift.set(backliftsetvalue);
+  frontLiftRight.set(frontliftsetvalue) ;
+  frontLiftLeft.set(frontliftsetvalue) ;
 
 }
 
@@ -1305,7 +1293,7 @@ public void climb_six() {
       SmartDashboard.putString("CLIMBING:", "phase 10 - raising robot 7 in. ..." + allOfThem);
     }
     climb_six_phase_10_timer = m_timer.get() - climb_six_phase_10_start_time;
-    doRaiseTogether();
+    doRaiseTogether_byGyro();
     return;
   }
 
@@ -1422,23 +1410,23 @@ public void climbingprogram() {
   }
 
 
-    // Phase 0 - raise the whole thing:
-    if (climbphase == 0 ) { 
-      if (climbphase0timer > 30) {
-        // ABORT!
-        L("aborting climbing in phase 0, ran out of time");
-        SmartDashboard.putString("CLIMBING:", "aborted in phase 0, didn't get raised in enough time. values: " + allOfThem);
-        abort_climb = true ;
-        return ;
-      }
-      if (climbphase0timer == 0){
-        L("entering climb phase 0."); 
-        SmartDashboard.putString("CLIMBING:", "phase 0. raising.. " + allOfThem);
-        climbphase0Start_time = m_timer.get() - .1 ;
-      }
-      climbphase0timer = m_timer.get() - climbphase0Start_time ;
-      doRaiseTogether();
+  // Phase 0 - raise the whole thing:
+  if (climbphase == 0 ) { 
+    if (climbphase0timer > 30) {
+      // ABORT!
+      L("aborting climbing in phase 0, ran out of time");
+      SmartDashboard.putString("CLIMBING:", "aborted in phase 0, didn't get raised in enough time. values: " + allOfThem);
+      abort_climb = true ;
+      return ;
     }
+    if (climbphase0timer == 0){
+      L("entering climb phase 0."); 
+      SmartDashboard.putString("CLIMBING:", "phase 0. raising.. " + allOfThem);
+      climbphase0Start_time = m_timer.get() - .1 ;
+    }
+    climbphase0timer = m_timer.get() - climbphase0Start_time ;
+    doRaiseTogether_byGyro();
+  }
 
 
         // end phase 0
@@ -1488,16 +1476,18 @@ public void climbingprogram() {
       // raising both front legs.  full speed, for X seconds.
       if (climbphase == 20) {
         if (raiseLegsClock > 6) {
-          L("aborting phase 20, legs did not rise in time.  FL:" + cimFrontLeft + " FR:" + cimFrontRight); // sensor error.
-          SmartDashboard.putString("CLIMBING:", "aborted in phase 20, sensor malfunction.");
-          abort_climb = true ;
+          L("finished phase 20 by clock.  FL:" + cimFrontLeft + " FR:" + cimFrontRight); // sensor error.
+          SmartDashboard.putString("CLIMBING:", "finished phase 20, raising legs.");
+          climbphase = 30 ;
+          frontLiftLeft.set(0);
+          frontLiftRight.set(0);
           return ;
         }
         if (legs_are_up) {
           climbphase = 30 ;
           frontLiftLeft.set(0);
           frontLiftRight.set(0);
-          L("finished phase 20. legs are up");
+          L("finished phase 20 by CIM. legs are up");
           return ;
         } 
         if (raiseLegsClock == 0) {
