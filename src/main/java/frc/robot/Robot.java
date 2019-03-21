@@ -56,7 +56,8 @@ public class Robot extends TimedRobot {
 
   // ************************************
   // change to "true" to use it.  or "false" to not use it.  compressor - CHANGE It Here! 
-  boolean USE_COMPRESSOR = true  ;
+  boolean USE_COMPRESSOR = false  ;
+  boolean USE_HATCH_SENSOR = true ;
   // ************************************
   boolean do_teleop_raise = false ;
 
@@ -131,6 +132,8 @@ public class Robot extends TimedRobot {
   double turn_throttle ;
   boolean thumb = false ;
   double middleHeight ;
+  double hatchSensor1value = 0 ;
+  double hatchSensor0value = 0 ;
 
   private final DifferentialDrive m_robotDrive
       = new DifferentialDrive(new Spark(0), new Spark(1));
@@ -149,12 +152,14 @@ public class Robot extends TimedRobot {
 
   AnalogInput frontHeightSensor = new AnalogInput(3) ;
   AnalogInput backHeightSensor = new AnalogInput(2) ;
-  AnalogInput middleHeightSensor = new AnalogInput(0) ;
+  //AnalogInput middleHeightSensor = new AnalogInput(0) ;
+  AnalogInput hatchSensor0 = new AnalogInput(0) ;
 
   // analog 1
   //AnalogInput pixyA = new AnalogInput(1) ;
 
-  AnalogInput myRangeFinder = new AnalogInput(1) ;
+  //AnalogInput myRangeFinder = new AnalogInput(1) ;
+  AnalogInput hatchSensor1 = new AnalogInput(1) ;
 
 
   Spark compressor = new Spark(4);
@@ -217,7 +222,8 @@ public class Robot extends TimedRobot {
   double startangle ;
   boolean pointreached ;
   
-  boolean hatch_up ;
+  boolean hatch_up = false ;
+  boolean hatch_down = false ;
 
     boolean reversemode  = false ; // drive backwards.
 
@@ -294,6 +300,8 @@ public class Robot extends TimedRobot {
     motorEnc.reset();  
 
     basket_piston_fired_start_time = 0 ;
+        piston.set(DoubleSolenoid.Value.kForward);
+
 
     CIM_zero_set = true ;
     cimBackObj.reset() ; cimFrontLeftObj.reset() ; cimFrontRightObj.reset() ; 
@@ -380,7 +388,6 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {
     try { ahrs.resetDisplacement() ; } finally {};
-    hatch_up = false ;
     if (! time_has_been_reset) { m_timer.reset();  m_timer.start();}
 
     timer_teleop = m_timer.get() ;
@@ -556,7 +563,7 @@ public void do_CIM_encoders() {
   cimFrontRight = cimFrontRightObj.getDistance() ;
   total_front_turns = ((cimFrontLeft + cimFrontRight) / 2 );
   if (cimFrontLeft < 200 && cimFrontRight < 200) {  legs_are_up = true ; } else { legs_are_up = false ;  }
-  if (cimBackR < 300) { wheels_are_up = true; } else { wheels_are_up = false ;}
+  if (cimBackR < 500) { wheels_are_up = true; } else { wheels_are_up = false ;}
   allOfThem =  "FL:" + cimFrontLeft + " FR:" + cimFrontRight + " BACK:" + cimBackR;
   SmartDashboard.putString("CIM VALUES:", allOfThem);
 }
@@ -765,14 +772,14 @@ public void doRaiseTogether_byGyro() {
     in_evening_phase = true ;
   
     // EVEN OUT the TILT. (left vs right)
-    /*
-    L("evening. currently tilted by " + tiltingDegree + " degrees");
+    
     if (tiltingDegree > 3) {
+      L("evening. currently tilted by " + tiltingDegree + " degrees");
       backlift.set(0);
       even_out_left_right(true); // 'true' means even out by going up first.
       return ;
     } 
-    */
+    
     
     if (tippingForward) {
       L("evening: currently tipping forward by " + tippingDegree + " degrees.");
@@ -809,7 +816,7 @@ public void doRaiseTogether_byGyro() {
 
 public void even_out_left_right(boolean go_up) {
   // adjust left and right heights until they are mostly even.
-  double speed = .5 ;
+  double speed = 1 ;
   if (go_up) {
     if (tiltingLeft) {
       frontLiftRight.set(0);
@@ -835,12 +842,12 @@ public void even_out_left_right(boolean go_up) {
 public void lower_from_six() {
 
   // sensor check:
-  if (lower_phase == 10 && ! (middleHeight > 2 ) ) {
+ /* if (lower_phase == 10 && ! (middleHeight > 2 ) ) {
     SmartDashboard.putString("LOWERING:", "sensor malfunction - just drive off of it.");
     L("middleheight sensor reading bad, aborting lowering. sensor = " + middleHeight) ;
     return ;
   }
-  
+  */
 
 
   if (tiltingDegree > 10 || tippingDegree > 10) {
@@ -905,12 +912,12 @@ public void lower_from_six() {
       lower_phase_30_start_time = m_timer.get() - .1 ;
     }
     lower_phase_30_timer = m_timer.get() - lower_phase_30_start_time ;
-    if (middleHeight < 2) {
+    /*if (middleHeight < 2) {
       L("lower phase 30 finished, sensor reads: " + middleHeight) ;
       backdrive.set(0) ;
       lower_phase = 40 ;
       return ;
-    }
+    } */
     // drive backward 
     backdrive.set(-1) ;
   }
@@ -1038,12 +1045,7 @@ public void lower_from_six() {
 
 public void lower_from_six_old() {
 
-  // sensor check:
-  if (lower_phase == 10 && ! (middleHeight > 2 ) ) {
-    SmartDashboard.putString("LOWERING:", "sensor malfunction - just drive off of it.");
-    L("middleheight sensor reading bad, aborting lowering. sensor = " + middleHeight) ;
-    return ;
-  }
+  
   
 
 
@@ -1089,7 +1091,7 @@ public void lower_from_six_old() {
   if (lower_phase == 30) {
     if (lower_phase_30_timer > 8){
       backdrive.set(0) ;
-      L("lower phase 30 aborted, time elapsed, sensor not activated. " + middleHeight);
+      //L("lower phase 30 aborted, time elapsed, sensor not activated. " + middleHeight);
       SmartDashboard.putString("LOWERING:", "ABORTED in phase 30. raising wheels...");
       if (cimBackR < -2300) { 
         backlift.set(0) ;
@@ -1105,12 +1107,12 @@ public void lower_from_six_old() {
       lower_phase_30_start_time = m_timer.get() - .1 ;
     }
     lower_phase_30_timer = m_timer.get() - lower_phase_30_start_time ;
-    if (middleHeight < 2) {
+    /* if (middleHeight < 2) {
       L("lower phase 30 finished, sensor reads: " + middleHeight) ;
       backdrive.set(0) ;
       lower_phase = 40 ;
       return ;
-    }
+    } */
     // drive backward 
     backdrive.set(-1) ;
   }
@@ -1279,7 +1281,8 @@ public void climb_six() {
       backlift.set(0);
       return ;
     }
-    if (total_front_turns > 2600 && cimBackR > 2600){
+  //  if (total_front_turns > 2600 && cimBackR > 2600){
+    if (total_front_turns > 2500 ){
       L("finished climb_six phase 10, height reached." + allOfThem);
       climb_six_phase = 20 ;
       frontLiftLeft.set(0);
@@ -1300,6 +1303,7 @@ public void climb_six() {
   if (climb_six_phase == 20) { 
       if (scootForwardclock > 4) { 
         L("phase 20, scooting, finished.");
+        backdrive.set(-1); // release tension from push against platform.
         backdrive.set(0);
         climb_six_phase = 30 ;
         return ;
@@ -1316,7 +1320,7 @@ public void climb_six() {
 
     // raising both front legs. 
     if (climb_six_phase == 30) {
-      if (raiseLegsClock > 5) {
+      if (raiseLegsClock > 6) {
         climb_six_phase = 40 ;
         frontLiftLeft.set(0);
         frontLiftRight.set(0);
@@ -1385,7 +1389,7 @@ public void climb_six() {
         SmartDashboard.putString("CLIMBING:", "in phase 50, raising back wheels.");
       }
       raisebackclock = m_timer.get() - raisebackStart_time ;      
-      backlift.set(-.9) ;
+      backlift.set(-.6) ;
       m_robotDrive.arcadeDrive(-.5, 0 );
 
     }
@@ -1395,11 +1399,11 @@ public void climb_six() {
 
 public void climbingprogram() {
 
-  if (climbphase == 0 && distance > 15 && climbphase0timer == 0) {
+  /*if (climbphase == 0 && distance > 15 && climbphase0timer == 0) {
     L("can't start climbphase, distance is too large, distance = " + distance) ;
     SmartDashboard.putString("CLIMBING:", "can't start, get closer to the wall!");
     return ;
-  }
+  }  */
 
   if (climbphase == 0 && at_20) { 
     L("CL: finished climbphase 0, going to phase 10. values: " + allOfThem);
@@ -1496,7 +1500,7 @@ public void climbingprogram() {
           SmartDashboard.putString("CLIMBING:", "in phase 20, raising legs.");
         }
         raiseLegsClock = m_timer.get() - raiseLegsStart_time ;
-        raise_front_legs(200);      
+        raise_front_legs(150);      
       }
 
 
@@ -1555,7 +1559,7 @@ public void climbingprogram() {
         SmartDashboard.putString("CLIMBING:", "in phase 40, raising back wheels.");
       }
       raisebackclock = m_timer.get() - raisebackStart_time ;      
-      backlift.set(-.6) ;
+      backlift.set(-.8) ;
       m_robotDrive.arcadeDrive(-.2, 0 );
     }
 
@@ -1836,21 +1840,42 @@ public void do_bucket_encoder() {
 
 public void do_distance_sensors() {
     // DISTANCE SENSOR:  distance from wall on bucket/front side. 
-  	distance = myRangeFinder.getAverageVoltage();
-		SmartDashboard.putNumber("DISTANCE VOLTAGE: ",distance);
+  	//distance = myRangeFinder.getAverageVoltage();
+		//SmartDashboard.putNumber("DISTANCE VOLTAGE: ",distance);
     //distance = distance * 2.4 ;
-    if (distance > 1.8) { distance = 5 ;}
+    /* if (distance > 1.8) { distance = 5 ;}
     else if (distance > 1.5) { distance = 7 ;}
     else if (distance > .9) { distance = 10 ;}
     else if (distance > .6) { distance = 15 ;}
     else if (distance > .5) { distance = 20 ;}
     else if (distance > .45) { distance = 25 ;}
     else if (distance > .4) { distance = 30 ;}
-    else {distance = 100;}
-    SmartDashboard.putNumber("DISTANCE: ",distance);
+    else {distance = 100;}  */
+    //SmartDashboard.putNumber("DISTANCE: ",distance);
 
-    middleHeight = middleHeightSensor.getAverageVoltage();
-    SmartDashboard.putNumber("Middle Height Sensor: ",middleHeight);
+    hatchSensor1value = hatchSensor1.getAverageVoltage();
+    SmartDashboard.putNumber("hatch Sensor 1: ",hatchSensor1value);
+    hatchSensor0value = hatchSensor0.getAverageVoltage();
+    SmartDashboard.putNumber("hatch Sensor 0: ",hatchSensor0value);
+
+    
+  if (hatchSensor0value > 2) {
+    hatch_up = true ;
+  } else {
+    hatch_up = false ;
+  }
+  if (hatchSensor1value > 2) {
+    hatch_down = true ;
+  } else {
+    hatch_down = false ;
+  }
+
+  SmartDashboard.putBoolean("HATCH-UP", hatch_up);
+  SmartDashboard.putBoolean("HATCH-DOWN", hatch_down);
+
+  if (! xbox.getRawButton(4) && xbox.getRawButton(1)){
+    USE_HATCH_SENSOR = false ;
+  }
 
     double Urange = frontHeightSensor.getAverageVoltage(); 
     SmartDashboard.putNumber("Front height sensor voltage:", Urange);
@@ -2081,18 +2106,25 @@ public void do_hatch_motor() {
   // boolean button4 = m_stick.getRawButton(4);  // DOWN
   double Xyaxis = xbox.getRawAxis(1);
 
+
   if (Xyaxis > .8   ||  m_stick.getRawButton(11)) { // DOWN
-    hatch_up = false ;
-    hatchmotor.set(.42);
+    if (hatch_down && USE_HATCH_SENSOR) {
+      hatchmotor.set(0); 
+    } else {
+      hatchmotor.set(.45);
+    }
   } else if (Xyaxis < -.8  || m_stick.getRawButton(9)){ // UP
-    hatch_up = true ;
-    hatchmotor.set(-.42);
+      if (hatch_up && USE_HATCH_SENSOR) {
+        hatchmotor.set(0);
+      } else {
+        hatchmotor.set(-.45);
+      }
+
   } else {
     hatchmotor.set(0);
   }
 
-  SmartDashboard.putNumber("Hatch motor:",hatchmotor.get() );
-  SmartDashboard.putBoolean("Hatch Hook is UP:",hatch_up );
+
 }
 
 public void do_bucket_elevator() {
